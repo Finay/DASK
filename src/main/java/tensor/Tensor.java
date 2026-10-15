@@ -1,10 +1,6 @@
 
 package tensor;
 
-
-import java.util.stream.IntStream;
-import java.util.Arrays;
-
 public class Tensor {
 
     private float[] data;
