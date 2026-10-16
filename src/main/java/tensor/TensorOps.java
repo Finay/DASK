@@ -1,22 +1,8 @@
 package tensor;
+import tensor.backend.BackendFactory;
 
-import tensor.backend.TensorBackend;
-import tensor.backend.CpuBackend;
-import tensor.backend.CudaBackend;
-
-
+//TODO: Implement the rest of these ops
 public class TensorOps {
-
-    private static final TensorBackend cpu = new CpuBackend();
-    private static final TensorBackend cuda = new CudaBackend();
-
-    private static TensorBackend backendFor(Device device) {
-        switch(device) {
-            case CPU: return cpu;
-            case CUDA: return cuda;
-            default: throw new InvalidDeviceException(device + " is not a supported accelerator.");
-        }
-    }
 
     private static void sameDevice(Tensor a, Tensor b){
         if(a.getDevice() != b.getDevice()){
@@ -26,11 +12,11 @@ public class TensorOps {
 
     public static Tensor add(Tensor a, Tensor b) {
         sameDevice(a, b);
-        return backendFor(a.getDevice()).add(a, b);
+        return BackendFactory.backendFor(a.getDevice()).add(a, b);
     }
 
     public static Tensor matmul(Tensor a, Tensor b) {
         sameDevice(a, b);
-        return backendFor(a.getDevice()).matmul(a, b);
+        return BackendFactory.backendFor(a.getDevice()).matmul(a, b);
     }
 }

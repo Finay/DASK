@@ -1,13 +1,14 @@
 
 package tensor;
+import tensor.storage.Storage;
+import tensor.storage.StorageFactory;
 
 public class Tensor {
 
-    private float[] data;
+    private Storage storage;
     private int[] shape;
     private int[] strides;
     private boolean requiresGrad;
-    private Device device;
 
     Tensor(int[] shape, float[] data, Device device, boolean requiresGrad) {
         int flatDim = flatDimension(shape);
@@ -17,11 +18,12 @@ public class Tensor {
                 "!= " + data.length + " data length"
             );
         }
-        this.data = data.clone();
+
+        this.storage = StorageFactory.alloc(device, flatDim);
+        this.storage.copyFromHost(data);
         this.shape = shape.clone();
         this.strides = new int[shape.length];
         this.requiresGrad = requiresGrad;
-        this.device = device;
 
         int acc = 1;
         for (int i = shape.length - 1; i >= 0; i--) {
@@ -30,12 +32,11 @@ public class Tensor {
         }
     }
 
-    private Tensor(int[] shape, int[] strides, float[] data, Device device, boolean requiresGrad) {
+    private Tensor(int[] shape, int[] strides, Storage storage, boolean requiresGrad) {
         this.shape = shape;
         this.strides = strides;
-        this.data = data;
+        this.storage = storage;
         this.requiresGrad = requiresGrad;
-        this.device = device;
 
     }
 
@@ -59,7 +60,7 @@ public class Tensor {
             right--;
         }
 
-        return new Tensor(shapeCopy, stridesCopy, this.data, this.device,  this.requiresGrad);
+        return new Tensor(shapeCopy, stridesCopy, this.storage, this.requiresGrad);
     }
 
     public static Tensor zeroes(int[] shape, Device device, boolean requiresGrad) {
@@ -81,32 +82,12 @@ public class Tensor {
         return off;
     }
 
-    public void set(int[] idx, float val) {
-        this.data[flatIndex(idx)] = val;
-    }
-
-    public float get(int[] idx) {
-        return this.data[flatIndex(idx)];
-    }
-
-    public int[] getStrides() {
-        return this.strides.clone();
-    }
-
-    public int[] getShape() {
-        return this.shape.clone();
-    }
-
-    public float[] getData() {
-        return this.data;
-    }
-
-    public Device getDevice() {
-        return this.device;
-    }
-
-    public boolean requiresGrad() {
-        return this.requiresGrad;
-    }
+    public void set(int[] idx, float val) {this.storage.set(flatIndex(idx), val);}
+    public float get(int[] idx) {return this.storage.get(flatIndex(idx));}
+    public int[] getStrides() { return this.strides.clone();}
+    public int[] getShape() {return this.shape.clone();}
+    public Storage getStorage() {return this.storage;}
+    public Device getDevice() {return this.storage.device();}
+    public boolean requiresGrad() {return this.requiresGrad;}
 
 }
