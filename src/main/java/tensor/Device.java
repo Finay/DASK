@@ -1,5 +1,5 @@
 package tensor;
 
-enum Device {
+public enum Device {
     CUDA, CPU;
 }
