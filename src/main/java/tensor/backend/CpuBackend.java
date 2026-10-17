@@ -122,7 +122,7 @@ public class CpuBackend implements TensorBackend {
 
     public Tensor add(Tensor a, Tensor b) {
         checkElementwise(a, b);
-        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad());
+        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
 
         float[] x = floats(a);
         float[] y = floats(b);
@@ -138,7 +138,7 @@ public class CpuBackend implements TensorBackend {
     }
     public Tensor subtract(Tensor a, Tensor b) {
         checkElementwise(a, b);
-        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad());
+        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
 
         float[] x = floats(a);
         float[] y = floats(b);
@@ -154,7 +154,7 @@ public class CpuBackend implements TensorBackend {
     }
     public Tensor divide(Tensor a, Tensor b) {
         checkElementwise(a, b);
-        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad());
+        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
 
         float[] x = floats(a);
         float[] y = floats(b);
@@ -170,7 +170,7 @@ public class CpuBackend implements TensorBackend {
     }
     public double dot (Tensor a, Tensor b) {
         checkElementwise(a, b);
-        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad());
+        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
 
         float[] x = floats(a);
         float[] y = floats(b);
