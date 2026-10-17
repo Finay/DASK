@@ -22,14 +22,9 @@ public class Tensor {
         this.storage = StorageFactory.alloc(device, flatDim);
         this.storage.copyFromHost(data);
         this.shape = shape.clone();
-        this.strides = new int[shape.length];
+        this.strides = continguousStrides(shape);
         this.requiresGrad = requiresGrad;
 
-        int acc = 1;
-        for (int i = shape.length - 1; i >= 0; i--) {
-            this.strides[i] = acc;
-            acc *= shape[i];
-        }
     }
 
     private Tensor(int[] shape, int[] strides, Storage storage, boolean requiresGrad) {
@@ -39,6 +34,17 @@ public class Tensor {
         this.requiresGrad = requiresGrad;
 
     }
+
+    private static int[] continguousStrides(int[] shape) {
+        int acc = 1;
+        int[] strides = new int[shape.length];
+        for (int i = shape.length - 1; i >= 0; i--) {
+            strides[i] = acc;
+            acc *= shape[i];
+        }
+        return strides;
+    }
+
 
     public Tensor transpose() {
         int right = shape.length - 1;
@@ -64,8 +70,8 @@ public class Tensor {
     }
 
     public static Tensor zeroes(int[] shape, Device device, boolean requiresGrad) {
-        float[] vals = new float[Tensor.flatDimension(shape)];
-        return new Tensor(shape, vals, device, requiresGrad);
+        Storage storage = StorageFactory.alloc(device, flatDimension(shape));
+        return new Tensor(shape.clone(), continguousStrides(shape), storage, requiresGrad);
     }
 
     private static int flatDimension(int[] shape) {
