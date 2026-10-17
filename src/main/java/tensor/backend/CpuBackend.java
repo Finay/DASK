@@ -23,6 +23,11 @@ public class CpuBackend implements TensorBackend {
     @FunctionalInterface 
     private interface RangeTask {void run(int start, int end);}
 
+    /**
+     * Initializes the CPU Backend
+     * 
+     * For debugging, reference java docs on concurrency, thread pools, lambdas.
+     */
     public CpuBackend() {
         this.numThreads = Runtime.getRuntime().availableProcessors();
         this.pool = Executors.newFixedThreadPool(numThreads, r -> {
