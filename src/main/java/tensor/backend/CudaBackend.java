@@ -17,7 +17,7 @@ public class CudaBackend implements TensorBackend {
     public Tensor divide(Tensor a, Tensor b) {
         throw new UnsupportedOperationException("Not implemented yet");
     }
-    public Tensor dot (Tensor a, Tensor b) {
+    public double dot (Tensor a, Tensor b) {
         throw new UnsupportedOperationException("Not implemented yet");
     }
     public void add_(Tensor a, Tensor b) {

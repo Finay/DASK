@@ -7,7 +7,7 @@ public interface TensorBackend {
     Tensor add(Tensor a, Tensor b);
     Tensor subtract(Tensor a, Tensor b);
     Tensor divide(Tensor a, Tensor b);
-    Tensor dot (Tensor a, Tensor b);
+    double dot (Tensor a, Tensor b);
     void add_(Tensor a, Tensor b);
     void subtract_ (Tensor a, Tensor b);
 }
