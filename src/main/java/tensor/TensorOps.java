@@ -1,7 +1,6 @@
 package tensor;
 import tensor.backend.BackendFactory;
 
-//TODO: Implement the rest of these ops
 public class TensorOps {
 
     private static void sameDevice(Tensor a, Tensor b){
