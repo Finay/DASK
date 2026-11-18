@@ -4,14 +4,32 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.example</groupId>
-    <artifactId>TeamProject</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <groupId>io.github.finay</groupId>
+    <artifactId>torontorch</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>torontorch</name>
+    <description>PyTorch-style tensors and autograd for Java</description>
+    <url>https://github.com/Finay/torontorch</url>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <scm>
+        <url>https://github.com/Finay/torontorch</url>
+        <connection>scm:git:https://github.com/Finay/torontorch.git</connection>
+    </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/Finay/torontorch</url>
+        </repository>
+    </distributionManagement>
 
 </project>
