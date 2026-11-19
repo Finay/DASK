@@ -3,18 +3,18 @@ package tensor.storage;
 import tensor.Device;
 
 public interface Storage extends AutoCloseable {
-  int size();
+    int size();
 
-  Device device();
+    Device device();
 
-  void copyFromHost(float[] src);
+    void copyFromHost(float[] src);
 
-  float[] toHostArray();
+    float[] toHostArray();
 
-  float get(int i);
+    float get(int i);
 
-  void set(int i, float val);
+    void set(int i, float val);
 
-  @Override
-  void close();
+    @Override
+    void close();
 }

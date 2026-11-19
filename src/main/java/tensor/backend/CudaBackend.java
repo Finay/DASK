@@ -4,32 +4,51 @@ import tensor.Tensor;
 
 public class CudaBackend implements TensorBackend {
 
-  public Tensor matmul(Tensor a, Tensor b) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
+    public Tensor matmul(Tensor a, Tensor b) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
 
-  public Tensor add(Tensor a, Tensor b) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
+    public Tensor add(Tensor a, Tensor b) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
 
-  public Tensor subtract(Tensor a, Tensor b) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
+    public Tensor subtract(Tensor a, Tensor b) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
 
-  public Tensor divide(Tensor a, Tensor b) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
+    public Tensor divide(Tensor a, Tensor b) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
 
-  public double dot(Tensor a, Tensor b) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
+    public double dot(Tensor a, Tensor b) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
 
-  public void add_(Tensor a, Tensor b) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
+    public void add_(Tensor a, Tensor b) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
 
-  public void subtract_(Tensor a, Tensor b) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
+    public void subtract_(Tensor a, Tensor b) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
 
+    public Tensor multiply(Tensor a, Tensor b) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    public Tensor relu(Tensor a) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    public Tensor reluBackward(Tensor a, Tensor gradOut) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    public Tensor mean(Tensor a) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    public Tensor meanBackward(Tensor a, Tensor gradOut) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
 }

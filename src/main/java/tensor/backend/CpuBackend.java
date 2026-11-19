@@ -16,211 +16,231 @@ import java.util.concurrent.Executors;
 
 public class CpuBackend implements TensorBackend {
 
-  private final int numThreads;
-  private final ExecutorService pool;
-  private static final int SERIAL_THRESH = 32_768;
+    private final int numThreads;
+    private final ExecutorService pool;
+    private static final int SERIAL_THRESH = 32_768;
 
-  @FunctionalInterface
-  private interface RangeTask {
-    void run(int start, int end);
-  }
-
-  /**
-   * Initializes the CPU Backend
-   * <p>
-   * For debugging, reference java docs on concurrency, thread pools, lambdas.
-   */
-  public CpuBackend() {
-    this.numThreads = Runtime.getRuntime().availableProcessors();
-    this.pool = Executors.newFixedThreadPool(numThreads, r -> {
-      Thread t = new Thread(r, "cpu-backend");
-      t.setDaemon(true);
-      return t;
-    });
-  }
-
-  private void parallelFor(int n, RangeTask task) {
-    parallelFor(n, n, task);
-  }
-
-  private void parallelFor(int n, long work, RangeTask task) {
-    if (work < SERIAL_THRESH || n < 2) {
-      task.run(0, n);
-      return;
+    @FunctionalInterface
+    private interface RangeTask {
+        void run(int start, int end);
     }
 
-    int chunks = Math.min(numThreads, n);
-    List<Callable<Void>> jobs = new ArrayList<>(chunks);
-
-    for (int c = 0; c < chunks; c++) {
-      int start = (int) ((long) n * c / chunks);
-      int end = (int) ((long) n * (c + 1) / chunks);
-      jobs.add(() -> {
-        task.run(start, end);
-        return null;
-      });
+    /**
+     * Initializes the CPU Backend
+     * <p>
+     * For debugging, reference java docs on concurrency, thread pools, lambdas.
+     */
+    public CpuBackend() {
+        this.numThreads = Runtime.getRuntime().availableProcessors();
+        this.pool = Executors.newFixedThreadPool(numThreads, r -> {
+            Thread t = new Thread(r, "cpu-backend");
+            t.setDaemon(true);
+            return t;
+        });
     }
 
-    try {
-      for (Future<Void> f : pool.invokeAll(jobs)) {
-        f.get();
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
-    } catch (ExecutionException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private static float[] floats(Tensor tens) {
-    return ((CpuStorage) tens.getStorage()).floats();
-  }
-
-  private static void checkElementwise(Tensor a, Tensor b) {
-    if (!Arrays.equals(a.getShape(), b.getShape())) {
-      throw new IllegalArgumentException("Shape Mistmatch");
-    }
-  }
-
-  public Tensor matmul(Tensor a, Tensor b) {
-    int[] as = a.getShape();
-    int[] bs = b.getShape();
-
-    if (as.length != 2 || bs.length != 2 || as[1] != bs[0]) {
-      throw new IllegalArgumentException("Shape Mismatch");
+    private void parallelFor(int n, RangeTask task) {
+        parallelFor(n, n, task);
     }
 
-    int M = as[0];
-    int K = as[1];
-    int N = bs[1];
-
-    Tensor c = Tensor.zeroes(new int[]{M, N}, Device.CPU, a.requiresGrad() || b.requiresGrad());
-
-    float[] x = floats(a);
-    float[] y = floats(b);
-    float[] z = floats(c);
-
-    int[] sa = a.getStrides();
-    int[] sb = b.getStrides();
-
-    int sa0 = sa[0];
-    int sa1 = sa[1];
-    int sb0 = sb[0];
-    int sb1 = sb[1];
-
-    parallelFor(M, (long) M * N * K, (s, e) -> {
-      for (int i = s; i < e; i++) {
-        int rowC = i * N;
-        for (int k = 0; k < K; k++) {
-          float aik = x[i * sa0 + k * sa1];
-          int rowB = k * sb0;
-          for (int j = 0; j < N; j++) {
-            z[rowC + j] += aik * y[rowB + j * sb1];
-          }
+    private void parallelFor(int n, long work, RangeTask task) {
+        if (work < SERIAL_THRESH || n < 2) {
+            task.run(0, n);
+            return;
         }
-      }
-    });
 
-    return c;
-  }
+        int chunks = Math.min(numThreads, n);
+        List<Callable<Void>> jobs = new ArrayList<>(chunks);
 
-  public Tensor add(Tensor a, Tensor b) {
-    checkElementwise(a, b);
-    Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
+        for (int c = 0; c < chunks; c++) {
+            int start = (int) ((long) n * c / chunks);
+            int end = (int) ((long) n * (c + 1) / chunks);
+            jobs.add(() -> {
+                task.run(start, end);
+                return null;
+            });
+        }
 
-    float[] x = floats(a);
-    float[] y = floats(b);
-    float[] z = floats(c);
+        try {
+            for (Future<Void> f : pool.invokeAll(jobs)) {
+                f.get();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-    parallelFor(z.length, (s, e) -> {
-      for (int i = s; i < e; i++) {
-        z[i] = x[i] + y[i];
-      }
-    });
+    private static float[] floats(Tensor tens) {
+        return ((CpuStorage) tens.getStorage()).floats();
+    }
 
-    return c;
-  }
+    private static void checkElementwise(Tensor a, Tensor b) {
+        if (!Arrays.equals(a.getShape(), b.getShape())) {
+            throw new IllegalArgumentException("Shape Mistmatch");
+        }
+    }
 
-  public Tensor subtract(Tensor a, Tensor b) {
-    checkElementwise(a, b);
-    Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
+    public Tensor matmul(Tensor a, Tensor b) {
+        int[] as = a.getShape();
+        int[] bs = b.getShape();
 
-    float[] x = floats(a);
-    float[] y = floats(b);
-    float[] z = floats(c);
+        if (as.length != 2 || bs.length != 2 || as[1] != bs[0]) {
+            throw new IllegalArgumentException("Shape Mismatch");
+        }
 
-    parallelFor(z.length, (s, e) -> {
-      for (int i = s; i < e; i++) {
-        z[i] = x[i] - y[i];
-      }
-    });
+        int M = as[0];
+        int K = as[1];
+        int N = bs[1];
 
-    return c;
-  }
+        Tensor c = Tensor.zeroes(new int[]{M, N}, Device.CPU, a.requiresGrad() || b.requiresGrad());
 
-  public Tensor divide(Tensor a, Tensor b) {
-    checkElementwise(a, b);
-    Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
+        float[] x = floats(a);
+        float[] y = floats(b);
+        float[] z = floats(c);
 
-    float[] x = floats(a);
-    float[] y = floats(b);
-    float[] z = floats(c);
+        int[] sa = a.getStrides();
+        int[] sb = b.getStrides();
 
-    parallelFor(z.length, (s, e) -> {
-      for (int i = s; i < e; i++) {
-        z[i] = x[i] / y[i];
-      }
-    });
+        int sa0 = sa[0];
+        int sa1 = sa[1];
+        int sb0 = sb[0];
+        int sb1 = sb[1];
 
-    return c;
-  }
+        parallelFor(M, (long) M * N * K, (s, e) -> {
+            for (int i = s; i < e; i++) {
+                int rowC = i * N;
+                for (int k = 0; k < K; k++) {
+                    float aik = x[i * sa0 + k * sa1];
+                    int rowB = k * sb0;
+                    for (int j = 0; j < N; j++) {
+                        z[rowC + j] += aik * y[rowB + j * sb1];
+                    }
+                }
+            }
+        });
 
-  public double dot(Tensor a, Tensor b) {
-    checkElementwise(a, b);
-    Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
+        return c;
+    }
 
-    float[] x = floats(a);
-    float[] y = floats(b);
-    float[] z = floats(c);
-    final double[] acc = {0.0};
+    public Tensor add(Tensor a, Tensor b) {
+        checkElementwise(a, b);
+        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
 
-    parallelFor(z.length, (s, e) -> {
-      double local = 0.0;
-      for (int i = s; i < e; i++) {
-        local += x[i] * y[i];
-      }
-      synchronized (acc) {
-        acc[0] += local;
-      }
-    });
+        float[] x = floats(a);
+        float[] y = floats(b);
+        float[] z = floats(c);
 
-    return acc[0];
-  }
+        parallelFor(z.length, (s, e) -> {
+            for (int i = s; i < e; i++) {
+                z[i] = x[i] + y[i];
+            }
+        });
 
-  public void add_(Tensor a, Tensor b) {
-    checkElementwise(a, b);
+        return c;
+    }
 
-    float[] x = floats(a);
-    float[] y = floats(b);
+    public Tensor subtract(Tensor a, Tensor b) {
+        checkElementwise(a, b);
+        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
 
-    parallelFor(x.length, (s, e) -> {
-      for (int i = s; i < e; i++) {
-        x[i] += y[i];
-      }
-    });
-  }
+        float[] x = floats(a);
+        float[] y = floats(b);
+        float[] z = floats(c);
 
-  public void subtract_(Tensor a, Tensor b) {
-    checkElementwise(a, b);
+        parallelFor(z.length, (s, e) -> {
+            for (int i = s; i < e; i++) {
+                z[i] = x[i] - y[i];
+            }
+        });
 
-    float[] x = floats(a);
-    float[] y = floats(b);
+        return c;
+    }
 
-    parallelFor(x.length, (s, e) -> {
-      for (int i = s; i < e; i++) {
-        x[i] -= y[i];
-      }
-    });
-  }
+    public Tensor divide(Tensor a, Tensor b) {
+        checkElementwise(a, b);
+        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
+
+        float[] x = floats(a);
+        float[] y = floats(b);
+        float[] z = floats(c);
+
+        parallelFor(z.length, (s, e) -> {
+            for (int i = s; i < e; i++) {
+                z[i] = x[i] / y[i];
+            }
+        });
+
+        return c;
+    }
+
+    public double dot(Tensor a, Tensor b) {
+        checkElementwise(a, b);
+        Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
+
+        float[] x = floats(a);
+        float[] y = floats(b);
+        float[] z = floats(c);
+        final double[] acc = {0.0};
+
+        parallelFor(z.length, (s, e) -> {
+            double local = 0.0;
+            for (int i = s; i < e; i++) {
+                local += x[i] * y[i];
+            }
+            synchronized (acc) {
+                acc[0] += local;
+            }
+        });
+
+        return acc[0];
+    }
+
+    public void add_(Tensor a, Tensor b) {
+        checkElementwise(a, b);
+
+        float[] x = floats(a);
+        float[] y = floats(b);
+
+        parallelFor(x.length, (s, e) -> {
+            for (int i = s; i < e; i++) {
+                x[i] += y[i];
+            }
+        });
+    }
+
+    public void subtract_(Tensor a, Tensor b) {
+        checkElementwise(a, b);
+
+        float[] x = floats(a);
+        float[] y = floats(b);
+
+        parallelFor(x.length, (s, e) -> {
+            for (int i = s; i < e; i++) {
+                x[i] -= y[i];
+            }
+        });
+    }
+
+    public Tensor multiply(Tensor a, Tensor b) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    public Tensor relu(Tensor a) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    public Tensor reluBackward(Tensor a, Tensor gradOut) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    public Tensor mean(Tensor a) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    public Tensor meanBackward(Tensor a, Tensor gradOut) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
 }
