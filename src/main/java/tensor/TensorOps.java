@@ -4,75 +4,75 @@ import java.util.Arrays;
 
 public class TensorOps {
 
-    private static void sameDevice(Tensor a, Tensor b){
-        if(a.getDevice() != b.getDevice()){
-            throw new InvalidDeviceException("Devices do not match.");
-        }
+  private static void sameDevice(Tensor a, Tensor b) {
+    if (a.getDevice() != b.getDevice()) {
+      throw new InvalidDeviceException("Devices do not match.");
     }
+  }
 
-    private static void sameShape(Tensor a, Tensor b) {
-        if (!Arrays.equals(a.getShape(), b.getShape())) {
-            throw new IllegalArgumentException("Tensor shapes do not match.");
-        }
+  private static void sameShape(Tensor a, Tensor b) {
+    if (!Arrays.equals(a.getShape(), b.getShape())) {
+      throw new IllegalArgumentException("Tensor shapes do not match.");
     }
+  }
 
-    public static Tensor add(Tensor a, Tensor b) {
-        sameDevice(a, b);
-        sameShape(a, b);
+  public static Tensor add(Tensor a, Tensor b) {
+    sameDevice(a, b);
+    sameShape(a, b);
 
-        Tensor out = BackendFactory.backendFor(a.getDevice()).add(a, b);
+    Tensor out = BackendFactory.backendFor(a.getDevice()).add(a, b);
 
-        if (a.requiresGrad() || b.requiresGrad()) {
-            out.setRequiresGrad(true);
+    if (a.requiresGrad() || b.requiresGrad()) {
+      out.setRequiresGrad(true);
 
-            out.setBackward(() -> {
-                if (a.requiresGrad()) {
-                    a.addGrad(out.getGrad());
-                }
-
-                if (b.requiresGrad()) {
-                    b.addGrad(out.getGrad());
-                }
-            }, a, b);
+      out.setBackward(() -> {
+        if (a.requiresGrad()) {
+          a.addGrad(out.getGrad());
         }
 
-        return out;
+        if (b.requiresGrad()) {
+          b.addGrad(out.getGrad());
+        }
+      }, a, b);
     }
 
-    public static Tensor subtract(Tensor a, Tensor b) {
-        sameDevice(a, b);
-        sameShape(a, b);
+    return out;
+  }
 
-        Tensor out = BackendFactory.backendFor(a.getDevice()).subtract(a, b);
+  public static Tensor subtract(Tensor a, Tensor b) {
+    sameDevice(a, b);
+    sameShape(a, b);
 
-        if (a.requiresGrad() || b.requiresGrad()) {
-            out.setRequiresGrad(true);
+    Tensor out = BackendFactory.backendFor(a.getDevice()).subtract(a, b);
 
-            out.setBackward(() -> {
-                if (a.requiresGrad()) {
-                    a.addGrad(out.getGrad());
-                }
+    if (a.requiresGrad() || b.requiresGrad()) {
+      out.setRequiresGrad(true);
 
-                if (b.requiresGrad()) {
-                    TensorBackend backend = BackendFactory.backendFor(b.getDevice());
-                    Tensor zeros = Tensor.zeroes(b.getShape(), b.getDevice(), false);
-                    Tensor gradB = backend.subtract(zeros, out.getGrad());
-                    b.addGrad(gradB);
-                }
-            }, a, b);
+      out.setBackward(() -> {
+        if (a.requiresGrad()) {
+          a.addGrad(out.getGrad());
         }
 
-        return out;
+            if (b.requiresGrad()) {
+                TensorBackend backend = BackendFactory.backendFor(b.getDevice());
+                Tensor zeros = Tensor.zeroes(b.getShape(), b.getDevice(), false);
+                Tensor gradB = backend.subtract(zeros, out.getGrad());
+                b.addGrad(gradB);
+            }
+        }, a, b);
     }
 
-    public static Tensor divide(Tensor a, Tensor b) {
-        sameDevice(a, b);
-        sameShape(a, b);
+    return out;
+  }
 
-        Tensor out = BackendFactory.backendFor(a.getDevice()).divide(a, b);
+  public static Tensor divide(Tensor a, Tensor b) {
+    sameDevice(a, b);
+    sameShape(a, b);
 
-        if (a.requiresGrad() || b.requiresGrad()) {
-            out.setRequiresGrad(true);
+    Tensor out = BackendFactory.backendFor(a.getDevice()).divide(a, b);
+
+    if (a.requiresGrad() || b.requiresGrad()) {
+      out.setRequiresGrad(true);
 
             out.setBackward(() -> {
                 TensorBackend backend = BackendFactory.backendFor(a.getDevice());
@@ -94,72 +94,72 @@ public class TensorOps {
             }, a, b);
         }
 
-        return out;
-    }
+    return out;
+  }
 
-    public static Tensor matmul(Tensor a, Tensor b) {
-        sameDevice(a, b);
+  public static Tensor matmul(Tensor a, Tensor b) {
+    sameDevice(a, b);
 
-        Tensor out = BackendFactory.backendFor(a.getDevice()).matmul(a, b);
+    Tensor out = BackendFactory.backendFor(a.getDevice()).matmul(a, b);
 
-        if (a.requiresGrad() || b.requiresGrad()) {
-            out.setRequiresGrad(true);
+    if (a.requiresGrad() || b.requiresGrad()) {
+      out.setRequiresGrad(true);
 
-            out.setBackward(() -> {
-                if (a.requiresGrad()) {
-                    Tensor gradA = BackendFactory.backendFor(a.getDevice())
-                            .matmul(out.getGrad(), b.transpose());
+      out.setBackward(() -> {
+        if (a.requiresGrad()) {
+          Tensor gradA = BackendFactory.backendFor(a.getDevice())
+                  .matmul(out.getGrad(), b.transpose());
 
-                    a.addGrad(gradA);
-                }
-
-                if (b.requiresGrad()) {
-                    Tensor gradB = BackendFactory.backendFor(b.getDevice())
-                            .matmul(a.transpose(), out.getGrad());
-
-                    b.addGrad(gradB);
-                }
-            }, a, b);
+          a.addGrad(gradA);
         }
 
-        return out;
-    }
+        if (b.requiresGrad()) {
+          Tensor gradB = BackendFactory.backendFor(b.getDevice())
+                  .matmul(a.transpose(), out.getGrad());
 
-    public static double dot(Tensor a, Tensor b) {
-        sameDevice(a, b);
-        sameShape(a, b);
-
-        return BackendFactory.backendFor(a.getDevice()).dot(a, b);
-    }
-
-    public static void add_(Tensor a, Tensor b) {
-        sameDevice(a, b);
-
-        if (a.requiresGrad() || b.requiresGrad()) {
-            throw new IllegalStateException(
-                    "In-place operations are not supported during autograd."
-            );
+          b.addGrad(gradB);
         }
-
-        BackendFactory.backendFor(a.getDevice()).add_(a, b);
+      }, a, b);
     }
 
-    public static void subtract_(Tensor a, Tensor b) {
-        sameDevice(a, b);
+    return out;
+  }
 
-        if (a.requiresGrad() || b.requiresGrad()) {
-            throw new IllegalStateException(
-                    "In-place operations are not supported during autograd."
-            );
-        }
+  public static double dot(Tensor a, Tensor b) {
+    sameDevice(a, b);
+    sameShape(a, b);
 
-        BackendFactory.backendFor(a.getDevice()).subtract_(a, b);
+    return BackendFactory.backendFor(a.getDevice()).dot(a, b);
+  }
+
+  public static void add_(Tensor a, Tensor b) {
+    sameDevice(a, b);
+
+    if (a.requiresGrad() || b.requiresGrad()) {
+      throw new IllegalStateException(
+              "In-place operations are not supported during autograd."
+      );
     }
 
+    BackendFactory.backendFor(a.getDevice()).add_(a, b);
+  }
 
-    public static Tensor multiply(Tensor a, Tensor b) {
-        sameDevice(a, b);
-        sameShape(a, b);
+  public static void subtract_(Tensor a, Tensor b) {
+    sameDevice(a, b);
+
+    if (a.requiresGrad() || b.requiresGrad()) {
+      throw new IllegalStateException(
+              "In-place operations are not supported during autograd."
+      );
+    }
+
+    BackendFactory.backendFor(a.getDevice()).subtract_(a, b);
+  }
+
+
+  public static Tensor multiply(Tensor a, Tensor b) {
+    sameDevice(a, b);
+    sameShape(a, b);
 
         TensorBackend backend = BackendFactory.backendFor(a.getDevice());
         Tensor out = backend.multiply(a, b);
@@ -180,8 +180,8 @@ public class TensorOps {
             }, a, b);
         }
 
-        return out;
-    }
+    return out;
+  }
 
     public static Tensor relu(Tensor a) {
         TensorBackend backend = BackendFactory.backendFor(a.getDevice());
@@ -196,8 +196,8 @@ public class TensorOps {
             }, a);
         }
 
-        return out;
-    }
+    return out;
+  }
 
     public static Tensor mean(Tensor a) {
         TensorBackend backend = BackendFactory.backendFor(a.getDevice());
@@ -212,6 +212,6 @@ public class TensorOps {
             }, a);
         }
 
-        return out;
-    }
+    return out;
+  }
 }

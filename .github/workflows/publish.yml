@@ -1,0 +1,33 @@
+# Publishes the library to GitHub Packages when a GitHub release is published.
+# The release tag sets the version: tag v0.1.0 publishes io.github.finay:torontorch:0.1.0.
+
+name: Publish to GitHub Packages
+
+on:
+  release:
+    types: [ published ]
+
+jobs:
+  publish:
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+        server-id: github
+    - name: Set version from release tag
+      run: mvn -B versions:set -DnewVersion="${GITHUB_REF_NAME#v}" -DgenerateBackupPoms=false
+    - name: Publish package
+      run: mvn -B deploy --file pom.xml
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
