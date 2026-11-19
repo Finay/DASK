@@ -4,8 +4,8 @@ package tensor;
 import tensor.storage.Storage;
 import tensor.storage.StorageFactory;
 import tensor.backend.BackendFactory;
-
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 
 public class Tensor {
@@ -18,7 +18,7 @@ public class Tensor {
     private Set<Tensor> parents;
     private Runnable backwardFunction;
 
-    Tensor(int[] shape, float[] data, Device device, boolean requiresGrad) {
+    public Tensor(int[] shape, float[] data, Device device, boolean requiresGrad) {
         int flatDim = flatDimension(shape);
         if (data.length != flatDim) {
             throw new IllegalArgumentException(
@@ -30,7 +30,7 @@ public class Tensor {
         this.storage = StorageFactory.alloc(device, flatDim);
         this.storage.copyFromHost(data);
         this.shape = shape.clone();
-        this.strides = continguousStrides(shape);
+        this.strides = contiguousStrides(shape);
         this.requiresGrad = requiresGrad;
         this.grad = null;
         this.parents = new HashSet<>();
@@ -51,7 +51,40 @@ public class Tensor {
 
     }
 
-    private static int[] continguousStrides(int[] shape) {
+    public Tensor(int[] shape, float[] data) {
+        this(shape, data, Device.CPU, false);
+    }
+
+    public Tensor(int[] shape, float[] data, Device device) {
+        this(shape, data, device, false);
+    }
+
+    public Tensor(int[] shape, float[] data, boolean requiresGrad) {
+        this(shape, data, Device.CPU, requiresGrad);
+    }
+
+    public Tensor(float scalar) {
+        this(new int[]{1}, new float[]{scalar});
+    }
+
+    public static Tensor ones(int[] shape, Device device, boolean requiresGrad) {
+        float data[] = new float[flatDimension(shape)];
+        Arrays.fill(data, 1.0f);
+
+        return new Tensor(shape, data, device, requiresGrad);
+    }
+
+    public static Tensor random(int[] shape, Device device, boolean requiresGrad) {
+        float data[] = new float[flatDimension(shape)];
+
+        for (int i = 0; i < data.length; i++) {
+            data[i] = (float) ThreadLocalRandom.current().nextGaussian();
+        }
+
+        return new Tensor(shape, data, device, requiresGrad);
+    }
+
+    private static int[] contiguousStrides(int[] shape) {
         int acc = 1;
         int[] strides = new int[shape.length];
         for (int i = shape.length - 1; i >= 0; i--) {
@@ -93,7 +126,7 @@ public class Tensor {
 
     public static Tensor zeroes(int[] shape, Device device, boolean requiresGrad) {
         Storage storage = StorageFactory.alloc(device, flatDimension(shape));
-        return new Tensor(shape.clone(), continguousStrides(shape), storage, requiresGrad);
+        return new Tensor(shape.clone(), contiguousStrides(shape), storage, requiresGrad);
     }
 
     public static int flatDimension(int[] shape) {
