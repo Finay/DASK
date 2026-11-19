@@ -1,237 +1,268 @@
 
 package tensor;
+
 import tensor.storage.Storage;
 import tensor.storage.StorageFactory;
+
 import java.util.*;
 
 
 public class Tensor {
 
-    private Storage storage;
-    private int[] shape;
-    private int[] strides;
-    private boolean requiresGrad;
-    private Tensor grad;
-    private Set<Tensor> parents;
-    private Runnable backwardFunction;
+  private Storage storage;
+  private int[] shape;
+  private int[] strides;
+  private boolean requiresGrad;
+  private Tensor grad;
+  private Set<Tensor> parents;
+  private Runnable backwardFunction;
 
-    Tensor(int[] shape, float[] data, Device device, boolean requiresGrad) {
-        int flatDim = flatDimension(shape);
-        if (data.length != flatDim) {
-            throw new IllegalArgumentException(
-                    "Shape and Data mismatch : (shape flat dim) " + flatDim +
-                            "!= " + data.length + " data length"
-            );
-        }
-
-        this.storage = StorageFactory.alloc(device, flatDim);
-        this.storage.copyFromHost(data);
-        this.shape = shape.clone();
-        this.strides = continguousStrides(shape);
-        this.requiresGrad = requiresGrad;
-        this.grad = null;
-        this.parents = new HashSet<>();
-        this.backwardFunction = () -> {};
-
+  Tensor(int[] shape, float[] data, Device device, boolean requiresGrad) {
+    int flatDim = flatDimension(shape);
+    if (data.length != flatDim) {
+      throw new IllegalArgumentException(
+              "Shape and Data mismatch : (shape flat dim) " + flatDim +
+                      "!= " + data.length + " data length"
+      );
     }
 
-    private Tensor(int[] shape, int[] strides, Storage storage, boolean requiresGrad) {
-        this.shape = shape;
-        this.strides = strides;
-        this.storage = storage;
-        this.requiresGrad = requiresGrad;
-        this.grad = null;
-        this.parents = new HashSet<>();
-        this.backwardFunction = () -> {};
+    this.storage = StorageFactory.alloc(device, flatDim);
+    this.storage.copyFromHost(data);
+    this.shape = shape.clone();
+    this.strides = continguousStrides(shape);
+    this.requiresGrad = requiresGrad;
+    this.grad = null;
+    this.parents = new HashSet<>();
+    this.backwardFunction = () -> {
+    };
 
+  }
+
+  private Tensor(int[] shape, int[] strides, Storage storage, boolean requiresGrad) {
+    this.shape = shape;
+    this.strides = strides;
+    this.storage = storage;
+    this.requiresGrad = requiresGrad;
+    this.grad = null;
+    this.parents = new HashSet<>();
+    this.backwardFunction = () -> {
+    };
+
+  }
+
+  private static int[] continguousStrides(int[] shape) {
+    int acc = 1;
+    int[] strides = new int[shape.length];
+    for (int i = shape.length - 1; i >= 0; i--) {
+      strides[i] = acc;
+      acc *= shape[i];
+    }
+    return strides;
+  }
+
+
+  public Tensor transpose() {
+    int right = shape.length - 1;
+    int left = 0;
+
+    int[] shapeCopy = this.shape.clone();
+    int[] stridesCopy = this.strides.clone();
+
+    while (right > left) {
+      int tempShape = shapeCopy[right];
+      shapeCopy[right] = shapeCopy[left];
+      shapeCopy[left] = tempShape;
+
+      int tempStride = stridesCopy[right];
+      stridesCopy[right] = stridesCopy[left];
+      stridesCopy[left] = tempStride;
+
+      left++;
+      right--;
     }
 
-    private static int[] continguousStrides(int[] shape) {
-        int acc = 1;
-        int[] strides = new int[shape.length];
-        for (int i = shape.length - 1; i >= 0; i--) {
-            strides[i] = acc;
-            acc *= shape[i];
-        }
-        return strides;
+    Tensor out = new Tensor(shapeCopy, stridesCopy, this.storage, this.requiresGrad);
+
+    if (this.requiresGrad) {
+      out.setBackward(() -> {
+        this.addGrad(out.getGrad().transpose());
+      }, this);
     }
 
+    return out;
+  }
 
-    public Tensor transpose() {
-        int right = shape.length - 1;
-        int left = 0;
+  public static Tensor zeroes(int[] shape, Device device, boolean requiresGrad) {
+    Storage storage = StorageFactory.alloc(device, flatDimension(shape));
+    return new Tensor(shape.clone(), continguousStrides(shape), storage, requiresGrad);
+  }
 
-        int[] shapeCopy = this.shape.clone();
-        int [] stridesCopy = this.strides.clone();
+  public static int flatDimension(int[] shape) {
+    int dim = 1;
+    for (int i : shape) {
+      if (i <= 0) {
+        throw new IllegalArgumentException("Shape cannot contain non-positive values.");
+      }
+      dim *= i;
+    }
+    return dim;
+  }
 
-        while (right > left) {
-            int tempShape = shapeCopy[right];
-            shapeCopy[right] = shapeCopy[left];
-            shapeCopy[left] = tempShape;
+  private int flatIndex(int[] idx) {
+    int off = 0;
+    for (int i = 0; i < idx.length; i++) {
+      off += idx[i] * this.strides[i];
+    }
+    return off;
+  }
 
-            int tempStride = stridesCopy[right];
-            stridesCopy[right] = stridesCopy[left];
-            stridesCopy[left] = tempStride;
+  public void set(int[] idx, float val) {
+    this.storage.set(flatIndex(idx), val);
+  }
 
-            left++;
-            right--;
-        }
+  public float get(int[] idx) {
+    return this.storage.get(flatIndex(idx));
+  }
 
-        Tensor out = new Tensor(shapeCopy, stridesCopy, this.storage, this.requiresGrad);
+  public int[] getStrides() {
+    return this.strides.clone();
+  }
 
-        if (this.requiresGrad) {
-            out.setBackward(() -> {
-                this.addGrad(out.getGrad().transpose());
-            }, this);
-        }
+  public int[] getShape() {
+    return this.shape.clone();
+  }
 
-        return out;
+  public Storage getStorage() {
+    return this.storage;
+  }
+
+  public Device getDevice() {
+    return this.storage.device();
+  }
+
+  public boolean requiresGrad() {
+    return this.requiresGrad;
+  }
+
+  public Tensor getGrad() {
+    return this.grad;
+  }
+
+  public void setRequiresGrad(boolean requiresGrad) {
+    this.requiresGrad = requiresGrad;
+  }
+
+  public void setBackward(Runnable backwardFunction, Tensor... parents) {
+    if (!this.requiresGrad) {
+      return;
     }
 
-    public static Tensor zeroes(int[] shape, Device device, boolean requiresGrad) {
-        Storage storage = StorageFactory.alloc(device, flatDimension(shape));
-        return new Tensor(shape.clone(), continguousStrides(shape), storage, requiresGrad);
+    this.parents = new HashSet<>(Arrays.asList(parents));
+    this.backwardFunction = backwardFunction;
+  }
+
+  public void addGrad(Tensor gradient) {
+    if (!this.requiresGrad) {
+      return;
     }
 
-    public static int flatDimension(int[] shape) {
-        int dim = 1;
-        for (int i : shape){
-            if (i <= 0) { throw new IllegalArgumentException("Shape cannot contain non-positive values.");}
-            dim *= i;
-        } return dim;
+    if (!Arrays.equals(this.shape, gradient.getShape())) {
+      throw new IllegalArgumentException("Gradient shape mismatch.");
     }
 
-    private int flatIndex(int[] idx) {
-        int off = 0;
-        for (int i = 0; i < idx.length; i++) {off += idx[i] * this.strides[i];}
-        return off;
+    if (this.grad == null) {
+      this.grad = Tensor.zeroes(this.shape, this.getDevice(), false);
+      this.resetGrad();
     }
 
-    public void set(int[] idx, float val) {this.storage.set(flatIndex(idx), val);}
-    public float get(int[] idx) {return this.storage.get(flatIndex(idx));}
-    public int[] getStrides() { return this.strides.clone();}
-    public int[] getShape() {return this.shape.clone();}
-    public Storage getStorage() {return this.storage;}
-    public Device getDevice() {return this.storage.device();}
-    public boolean requiresGrad() {return this.requiresGrad;}
-    public Tensor getGrad() {
-        return this.grad;
-    }
-    public void setRequiresGrad(boolean requiresGrad) {
-        this.requiresGrad = requiresGrad;
-    }
+    int[] idx = new int[this.shape.length];
+    int dim = flatDimension(this.shape);
 
-    public void setBackward(Runnable backwardFunction, Tensor... parents) {
-        if (!this.requiresGrad) {
-            return;
-        }
+    for (int i = 0; i < dim; i++) {
+      int remainder = i;
 
-        this.parents = new HashSet<>(Arrays.asList(parents));
-        this.backwardFunction = backwardFunction;
+      for (int j = this.shape.length - 1; j >= 0; j--) {
+        idx[j] = remainder % this.shape[j];
+        remainder /= this.shape[j];
+      }
+
+      this.grad.set(idx, this.grad.get(idx) + gradient.get(idx));
+    }
+  }
+
+  private void resetGrad() {
+    if (this.grad == null) {
+      return;
     }
 
-    public void addGrad(Tensor gradient) {
-        if (!this.requiresGrad) {
-            return;
-        }
+    int[] idx = new int[this.shape.length];
+    int dim = flatDimension(this.shape);
 
-        if (!Arrays.equals(this.shape, gradient.getShape())) {
-            throw new IllegalArgumentException("Gradient shape mismatch.");
-        }
+    for (int i = 0; i < dim; i++) {
+      int remainder = i;
 
-        if (this.grad == null) {
-            this.grad = Tensor.zeroes(this.shape, this.getDevice(), false);
-            this.resetGrad();
-        }
+      for (int j = this.shape.length - 1; j >= 0; j--) {
+        idx[j] = remainder % this.shape[j];
+        remainder /= this.shape[j];
+      }
 
-        int[] idx = new int[this.shape.length];
-        int dim = flatDimension(this.shape);
+      this.grad.set(idx, 0.0f);
+    }
+  }
 
-        for (int i = 0; i < dim; i++) {
-            int remainder = i;
+  private static void buildTopo(
+          Tensor tensor,
+          Set<Tensor> visited,
+          List<Tensor> topo) {
 
-            for (int j = this.shape.length - 1; j >= 0; j--) {
-                idx[j] = remainder % this.shape[j];
-                remainder /= this.shape[j];
-            }
+    if (!visited.contains(tensor)) {
+      visited.add(tensor);
 
-            this.grad.set(idx, this.grad.get(idx) + gradient.get(idx));
-        }
+      for (Tensor parent : tensor.parents) {
+        buildTopo(parent, visited, topo);
+      }
+
+      topo.add(tensor);
+    }
+  }
+
+  public void backward() {
+    if (flatDimension(this.shape) != 1) {
+      throw new IllegalStateException("Require an initial gradient.");
     }
 
-    private void resetGrad() {
-        if (this.grad == null) {
-            return;
-        }
+    Tensor gradient = Tensor.zeroes(this.shape, this.getDevice(), false);
+    gradient.set(new int[this.shape.length], 1.0f);
 
-        int[] idx = new int[this.shape.length];
-        int dim = flatDimension(this.shape);
+    backward(gradient);
+  }
 
-        for (int i = 0; i < dim; i++) {
-            int remainder = i;
+  public void backward(Tensor gradient) {
+    List<Tensor> topo = new ArrayList<>();
+    Set<Tensor> visited = new HashSet<>();
+    buildTopo(this, visited, topo);
 
-            for (int j = this.shape.length - 1; j >= 0; j--) {
-                idx[j] = remainder % this.shape[j];
-                remainder /= this.shape[j];
-            }
-
-            this.grad.set(idx, 0.0f);
-        }
+    for (Tensor tensor : topo) {
+      if (!tensor.parents.isEmpty()) {
+        tensor.resetGrad();
+      }
     }
 
-    private static void buildTopo(
-            Tensor tensor,
-            Set<Tensor> visited,
-            List<Tensor> topo) {
+    this.addGrad(gradient);
 
-        if (!visited.contains(tensor)) {
-            visited.add(tensor);
-
-            for (Tensor parent: tensor.parents) {
-                buildTopo(parent, visited, topo);
-            }
-
-            topo.add(tensor);
-        }
+    for (int i = topo.size() - 1; i >= 0; i--) {
+      Tensor tensor = topo.get(i);
+      tensor.backwardFunction.run();
     }
+  }
 
-    public void backward() {
-        if (flatDimension(this.shape) != 1) {
-            throw new IllegalStateException("Require an initial gradient.");
-        }
+  public void zeroGrad() {
+    List<Tensor> topo = new ArrayList<>();
+    Set<Tensor> visited = new HashSet<>();
+    buildTopo(this, visited, topo);
 
-        Tensor gradient = Tensor.zeroes(this.shape, this.getDevice(), false);
-        gradient.set(new int[this.shape.length], 1.0f);
-
-        backward(gradient);
+    for (Tensor tensor : topo) {
+      tensor.resetGrad();
     }
-
-    public void backward(Tensor gradient) {
-        List<Tensor> topo = new ArrayList<>();
-        Set<Tensor> visited = new HashSet<>();
-        buildTopo(this, visited, topo);
-
-        for (Tensor tensor: topo) {
-            if (!tensor.parents.isEmpty()) {
-                tensor.resetGrad();
-            }
-        }
-
-        this.addGrad(gradient);
-
-        for (int i = topo.size() - 1; i >= 0; i--) {
-            Tensor tensor = topo.get(i);
-            tensor.backwardFunction.run();
-        }
-    }
-
-    public void zeroGrad() {
-        List<Tensor> topo = new ArrayList<>();
-        Set<Tensor> visited = new HashSet<>();
-        buildTopo(this, visited, topo);
-
-        for (Tensor tensor: topo) {
-            tensor.resetGrad();
-        }
-    }
+  }
 }

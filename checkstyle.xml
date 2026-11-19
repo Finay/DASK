@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+  "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!-- Style rules for torontorch. Run locally with: mvn checkstyle:check -->
+<module name="Checker">
+  <property name="severity" value="error"/>
+
+  <module name="FileTabCharacter"/>
+  <module name="NewlineAtEndOfFile"/>
+  <module name="LineLength">
+    <property name="max" value="120"/>
+  </module>
+
+  <module name="TreeWalker">
+    <!-- Formatting -->
+    <module name="Indentation">
+      <property name="basicOffset" value="4"/>
+    </module>
+    <module name="LeftCurly"/>
+    <module name="RightCurly"/>
+    <module name="NeedBraces"/>
+    <module name="WhitespaceAround"/>
+    <module name="WhitespaceAfter"/>
+    <module name="MethodParamPad"/>
+    <module name="OneStatementPerLine"/>
+
+    <!-- Imports -->
+    <module name="UnusedImports"/>
+    <module name="AvoidStarImport"/>
+
+    <!-- Naming. Method names may end in "_" for in-place ops such as add_. -->
+    <module name="TypeName"/>
+    <module name="MethodName">
+      <property name="format" value="^[a-z][a-zA-Z0-9]*_?$"/>
+    </module>
+    <module name="LocalVariableName"/>
+    <module name="MemberName"/>
+    <module name="ConstantName"/>
+
+    <!-- Common mistakes -->
+    <module name="EmptyBlock"/>
+    <module name="EqualsHashCode"/>
+    <module name="MissingSwitchDefault"/>
+  </module>
+</module>
