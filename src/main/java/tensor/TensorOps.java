@@ -127,11 +127,27 @@ public class TensorOps {
         return out;
     }
 
-    public static double dot(Tensor a, Tensor b) {
+    public static Tensor dot(Tensor a, Tensor b) {
         sameDevice(a, b);
         sameShape(a, b);
 
-        return BackendFactory.backendFor(a.getDevice()).dot(a, b);
+        Tensor out = BackendFactory.backendFor(a.getDevice()).dot(a, b);
+
+        if (a.requiresGrad() || b.requiresGrad()) {
+            out.setRequiresGrad(true);
+
+            out.setBackward(() -> {
+                if (a.requiresGrad()) {
+                    a.addGrad(b);
+                }
+
+                if (b.requiresGrad()) {
+                    b.addGrad(a);
+                }
+            }, a, b);
+        }
+
+        return out;
     }
 
     public static void add_(Tensor a, Tensor b) {
@@ -210,6 +226,22 @@ public class TensorOps {
 
             out.setBackward(() -> {
                 Tensor gradA = backend.meanBackward(a, out.getGrad());
+                a.addGrad(gradA);
+            }, a);
+        }
+
+        return out;
+    }
+
+    public static Tensor exp(Tensor a) {
+        TensorBackend backend = BackendFactory.backendFor(a.getDevice());
+        Tensor out = backend.exp(a);
+
+        if (a.requiresGrad()) {
+            out.setRequiresGrad(true);
+
+            out.setBackward(() -> {
+                Tensor gradA = backend.exp(a);
                 a.addGrad(gradA);
             }, a);
         }

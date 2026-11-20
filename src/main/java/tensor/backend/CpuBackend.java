@@ -12,6 +12,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
+import java.lang.Math;
+
 import java.util.concurrent.Executors;
 
 public class CpuBackend implements TensorBackend {
@@ -176,16 +178,15 @@ public class CpuBackend implements TensorBackend {
         return c;
     }
 
-    public double dot(Tensor a, Tensor b) {
+    public Tensor dot(Tensor a, Tensor b) {
         checkElementwise(a, b);
         Tensor c = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad() || b.requiresGrad());
 
         float[] x = floats(a);
         float[] y = floats(b);
-        float[] z = floats(c);
         final double[] acc = {0.0};
 
-        parallelFor(z.length, (s, e) -> {
+        parallelFor(x.length, (s, e) -> {
             double local = 0.0;
             for (int i = s; i < e; i++) {
                 local += x[i] * y[i];
@@ -195,7 +196,7 @@ public class CpuBackend implements TensorBackend {
             }
         });
 
-        return acc[0];
+        return new Tensor((float)acc[0]);
     }
 
     public void add_(Tensor a, Tensor b) {
@@ -242,5 +243,20 @@ public class CpuBackend implements TensorBackend {
 
     public Tensor meanBackward(Tensor a, Tensor gradOut) {
         throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    public Tensor exp(Tensor a) {
+        Tensor b = Tensor.zeroes(a.getShape(), Device.CPU, a.requiresGrad());
+
+        float[] x = floats(a);
+        float[] y = floats(b);
+
+        parallelFor(x.length, (s, e) -> {
+            for (int i = s; i < e; i++) {
+                y[i] = (float)Math.exp((double)x[i]);
+            }
+        });
+
+        return b;
     }
 }

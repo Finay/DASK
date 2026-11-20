@@ -21,7 +21,9 @@ public interface TensorBackend {
 
     Tensor meanBackward(Tensor a, Tensor gradOut);
 
-    double dot(Tensor a, Tensor b);
+    Tensor exp(Tensor a);
+
+    Tensor dot(Tensor a, Tensor b);
 
     void add_(Tensor a, Tensor b);
 
